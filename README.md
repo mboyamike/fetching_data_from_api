@@ -8,7 +8,7 @@ It's an introduction to fetching data from the api.
 Clone this repo
 
 ```
-    git clone 
+    git clone https://github.com/mboyamike/fetching_data_from_api.git
 ```
 
 Open the folder in your preferred code editor
