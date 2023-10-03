@@ -28,21 +28,41 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late Future<List<Map<String, dynamic>>> fetchTodosFuture;
+
   Future<List<Map<String, dynamic>>> fetchTodos() async {
     final uri = Uri.parse('https://jsonplaceholder.typicode.com/todos');
     final response = await http.get(uri);
     final responseBody = await jsonDecode(response.body);
+    await Future.delayed(const Duration(milliseconds: 500));
     return List<Map<String, dynamic>>.from(responseBody);
   }
 
   @override
+  void initState() {
+    super.initState();
+    fetchTodosFuture = fetchTodos();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    MediaQuery.sizeOf(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Todos'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                fetchTodosFuture = fetchTodos();
+              });
+            },
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: FutureBuilder(
-        future: fetchTodos(),
+        future: fetchTodosFuture,
         builder: (context, asyncSnapshot) {
           if (asyncSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
