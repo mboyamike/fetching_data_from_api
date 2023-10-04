@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fetching_data_from_api/todo.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -28,14 +29,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<List<Map<String, dynamic>>> fetchTodosFuture;
+  late Future<List<Todo>> fetchTodosFuture;
 
-  Future<List<Map<String, dynamic>>> fetchTodos() async {
+  Future<List<Todo>> fetchTodos() async {
     final uri = Uri.parse('https://jsonplaceholder.typicode.com/todos');
     final response = await http.get(uri);
     final responseBody = await jsonDecode(response.body);
     await Future.delayed(const Duration(milliseconds: 500));
-    return List<Map<String, dynamic>>.from(responseBody);
+    return List<Map<String, dynamic>>.from(responseBody)
+        .map((todoMap) => Todo.fromMap(todoMap))
+        .toList();
   }
 
   @override
@@ -46,7 +49,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    MediaQuery.sizeOf(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Todos'),
@@ -76,12 +78,12 @@ class _HomePageState extends State<HomePage> {
                   ListTile(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => TodoPage(id: todo['id'].toString()),
+                        builder: (_) => TodoPage(id: todo.id.toString()),
                       ),
                     ),
                     leading: Text('${todos.indexOf(todo) + 1}'),
-                    title: Text(todo['title']),
-                    selected: todo['completed'],
+                    title: Text(todo.title),
+                    selected: todo.completed,
                   ),
               ],
             );
