@@ -1,11 +1,18 @@
 import 'dart:convert';
 
+import 'package:fetching_data_from_api/repository.dart';
+import 'package:fetching_data_from_api/router.dart';
 import 'package:fetching_data_from_api/todo.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -13,38 +20,29 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
-      home: HomePage(),
+      routerConfig: router,
     );
   }
 }
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   late Future<List<Todo>> fetchTodosFuture;
-
-  Future<List<Todo>> fetchTodos() async {
-    final uri = Uri.parse('https://jsonplaceholder.typicode.com/todos');
-    final response = await http.get(uri);
-    final responseBody = await jsonDecode(response.body);
-    await Future.delayed(const Duration(milliseconds: 500));
-    return List<Map<String, dynamic>>.from(responseBody)
-        .map((todoMap) => Todo.fromMap(todoMap))
-        .toList();
-  }
 
   @override
   void initState() {
     super.initState();
-    fetchTodosFuture = fetchTodos();
+    final Repository repository = ref.read(repositoryProvider);
+    fetchTodosFuture = repository.fetchTodos();
   }
 
   @override
@@ -56,7 +54,8 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             onPressed: () {
               setState(() {
-                fetchTodosFuture = fetchTodos();
+                final Repository repository = ref.read(repositoryProvider);
+                fetchTodosFuture = repository.fetchTodos();
               });
             },
             icon: const Icon(Icons.refresh),
@@ -96,22 +95,23 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class TodoPage extends StatefulWidget {
+class TodoPage extends ConsumerStatefulWidget {
   const TodoPage({super.key, required this.id});
 
   final String id;
 
   @override
-  State<TodoPage> createState() => _TodoPageState();
+  ConsumerState<TodoPage> createState() => _TodoPageState();
 }
 
-class _TodoPageState extends State<TodoPage> {
-  Future<Map<String, dynamic>> fetchTodo() async {
-    final id = widget.id;
-    final uri = Uri.parse('https://jsonplaceholder.typicode.com/todos/$id');
-    final response = await http.get(uri);
-    final responseBody = await jsonDecode(response.body);
-    return Map<String, dynamic>.from(responseBody);
+class _TodoPageState extends ConsumerState<TodoPage> {
+  late Future<Todo> fetchTodoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final Repository repository = ref.read(repositoryProvider);
+    fetchTodoFuture = repository.fetchTodo(id: widget.id);
   }
 
   @override
@@ -121,44 +121,27 @@ class _TodoPageState extends State<TodoPage> {
         title: const Text('Todo'),
       ),
       body: FutureBuilder(
-        future: fetchTodo(),
-        builder: (context, asyncSnapshot) {
-          if (asyncSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+        future: fetchTodoFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(snapshot.error.toString()),
+            );
           }
 
-          if (asyncSnapshot.hasData) {
-            final todo = asyncSnapshot.data!;
+          if (snapshot.hasData) {
+            final todo = snapshot.data!;
             return Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(todo['id'].toString()),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            todo['title'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          Checkbox(value: todo['completed'], onChanged: null),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              child: Column(
+                children: [
+                  Text(todo.id.toString()),
+                  Checkbox(value: todo.completed, onChanged: null)
+                ],
               ),
             );
           }
 
-          return const SizedBox();
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
